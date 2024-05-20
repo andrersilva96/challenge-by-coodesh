@@ -2,16 +2,17 @@
 
 namespace App\Http\Api;
 
-use App\Models\Food;
+use App\Models\Food as FoodModels;
+use Illuminate\Http\Request;
 use Orion\Http\Controllers\Controller;
 use Orion\Concerns\DisableAuthorization;
 use Illuminate\Support\Facades\Auth;
 
-class FoodController extends Controller
+class Food extends Controller
 {
     use DisableAuthorization;
 
-    protected $model = Food::class;
+    protected $model = FoodModels::class;
 
     public function resolveUser()
     {
@@ -21,5 +22,11 @@ class FoodController extends Controller
     protected function keyName(): string
     {
         return 'code';
+    }
+
+    protected function afterDestroy(Request $request, $food)
+    {
+        $food->status = 'trash';
+        $food->save();
     }
 }
