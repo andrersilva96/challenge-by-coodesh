@@ -38,6 +38,11 @@ class FoodApiTest extends TestCase
         'deleted_at'
     ];
 
+    public function test_import_from_api()
+    {
+        $this->get(url('api'))->assertStatus(Response::HTTP_OK);
+    }
+
     public function test_store_product_from_api()
     {
         $food = Food::factory()->create();
