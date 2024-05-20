@@ -3,8 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Models\Food;
+use App\Models\Import;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Collection;
 
 class ImportOpenFoodFacts extends Command
 {
@@ -14,18 +17,15 @@ class ImportOpenFoodFacts extends Command
 
     public function handle()
     {
-        $files = $this->getFileNames();
-
-        foreach ($files as $file) {
-            $this->info("Importing $file...");
-            $data = $this->getDataFromFile($this->url . $file);
-            $this->saveFoods($data);
-        }
+        $files = $this->getFilesToUpdate();
+        $this->importFoods($files);
     }
 
-    public function getFileNames(): array
+    private function getFilesToUpdate(): Collection
     {
-        return preg_split('/\s*\R/', rtrim(Http::get($this->url . 'index.txt')->body()));
+        $data = collect(preg_split('/\s*\R/', rtrim(Http::get($this->url . 'index.txt')->body())));
+        $import = Import::whereDate('updated_at', Carbon::now())->get()->pluck('file');
+        return $data->diff($import);
     }
 
     private function getDataFromFile(string $url): array
@@ -39,7 +39,7 @@ class ImportOpenFoodFacts extends Command
         return preg_split('/\s*\R/', rtrim($txt));
     }
 
-    public function saveFoods(array $data): void
+    private function saveFoods(array $data): void
     {
         $limit = 100;
         foreach ($data as $json) {
@@ -49,6 +49,18 @@ class ImportOpenFoodFacts extends Command
                 $limit--;
             }
             if ($limit == 0) break;
+        }
+    }
+
+    private function importFoods(Collection $files): void
+    {
+        foreach ($files as $file) {
+            $import = Import::updateOrCreate(['file' => $file], ['file' => $file]);
+            $import->updated_at = Carbon::now();
+            $import->save();
+            $this->info("Importing $file...");
+            $data = $this->getDataFromFile($this->url . $file);
+            $this->saveFoods($data);
         }
     }
 }
